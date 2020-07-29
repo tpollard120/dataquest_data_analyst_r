@@ -1,0 +1,125 @@
+---
+title: "Investigating COVID-19 Virus Trends"
+author: "Tim Pollard"
+date: "July 28, 2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```
+library(tidyverse)
+```
+
+COVID-19 has been a brutal reminder that, even in the Information Age and all of the perks that come with it, we are still a vulnerable race, and a new strain of a disease can prove deadly on a massive scale. There are many types of analysis that could be done regarding COVID, and there will certainly be many done in the aftermath, but at the present, let's focus on something easily disgetable: the percent positive rate per country.
+
+Percent positive rate can be determined from the ratio of positive tests to all tests. If a country tested 500 people today, and 50 of them test positive, then that country's percent positive rate for the day is 10%. Our goal with this project is to identify what countries have the highest percent positive rate. The dataset we are using collects cases from 1/20/20 - 6/1/20, so cases outside of that date range will not be considered.
+
+Before we get started, let's load our dataset.
+```
+setwd("C:/Users/Tumpulele/DataQuest/R")
+covid <- read_csv("covid19.csv")
+```
+Below is a list of columns our dataset contains, along with each column indicates:
+
+Date: Date
+
+Continent_Name: Continent names
+
+Two_Letter_Country_Code: Country codes
+
+Country_Region: Country names
+
+Province_State: States/province names; value is All States when state/provincial level data is not available
+
+positive: Cumulative number of positive cases reported.
+
+active: Number of actively cases on that day.
+
+hospitalized: Cumulative number of hospitalized cases reported.
+
+hospitalizedCurr: Number of actively hospitalized cases on that day.
+
+recovered: Cumulative number of recovered cases reported.
+
+death: Cumulative number of deaths reported.
+
+total_tested: Cumulative number of tests conducted.
+
+daily_tested: Number of tests conducted on the day; if daily data is unavailable, daily tested is averaged across number of days in between.
+
+daily_positive: Number of positive cases reported on the day; if daily data is unavailable, daily positive is averaged across number of days in.
+
+```
+library(dplyr)
+dim(covid)
+vector_cols <- colnames(covid)
+vector_cols
+
+head(covid)
+glimpse(covid)
+```
+The Province_State column, which represents what subregion of a country is impacted, is either written as 'All States' in cases where the whole country is represented, or otherwise, it lists the specific province/state. Since we are focused on full country results, we will modify our dataset to only include rows where `Province_State` = 'All States'.
+
+```
+covid_all_states <- covid %>%
+                      filter(Province_State == "All States")
+```
+Note that the above adjustment does not cause us to lose data. This is because the dataset includes a line item for each country, in addition to specific state breakdowns on separate lines. In other words, the lines we are removing are included in the 'All States' row for the country.
+
+Also worth noting, our dataset contains both daily data and cumulative data. We will focus primarily on daily data for our analysis. As such, we will create a new dataframe including only columns were are currently interested in.
+```
+covid_all_states_daily <- covid_all_states %>%
+                            select(Date, Country_Region, active, hospitalizedCurr,                               daily_tested, daily_positive)
+```
+
+Now, we want to compute the sum of number tested, number positive, active and hospitalized cases. We will then use this data to find the top 10 countries.
+
+```
+covid_top_10 <- covid_all_states_daily %>%
+                  group_by(Country_Region) %>%
+                  summarize(tested = sum(daily_tested),
+                            positive = sum(daily_positive),
+                            active = sum(active),
+                            hospitalized = sum(hospitalizedCurr)) %>%
+                  arrange(-tested)
+```
+
+
+Now let's pull some specific data to help us analyzie further.
+
+```
+countries <- covid_top_10 %>%
+              pull(Country_Region)
+
+tested_cases <- covid_top_10 %>%
+              pull(tested)
+              
+positive_cases <- covid_top_10 %>%
+              pull(positive)
+              
+active_cases <- covid_top_10 %>%
+              pull(active)
+              
+hospitalized_cases <- covid_top_10 %>%
+              pull(hospitalized)
+
+names(tested_cases) <- countries
+names(positive_cases) <- countries
+names(active_cases) <- countries
+names(hospitalized_cases) <- countries
+              
+positive_tested_percentage <- positive_cases / tested_cases
+sort(positive_tested_percentage)
+positive_tested_top_3 <- head(sort(positive_tested_percentage, decreasing = TRUE),3)
+
+view(positive_tested_top_3)
+```
+We can see that the countries with the top three percent positive rates are Eduador, Mexico and Sweden. Given the very limited nature of our analysis, we will avoid extrapolating further or speculating about the results, but Ecuador seems relatively uncommonly mentioend in the larger COVID-19 conversation, so it is interesting to see that it has the highest percent positive rate from countries on our list.    
+            
+
+                  
+                  
